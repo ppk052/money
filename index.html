@@ -60,6 +60,7 @@ const CATEGORIZED_DEVICE_LIST = (() => {
     else if (device.name.includes('폴드') || device.name.includes('플립')) categories['폴더블'].push(device);
     else if (device.name.includes('A')) categories['A 시리즈'].push(device);
   });
+  // 아래 주석은 금액순으로 정렬하는 코드
   //for (const key in categories) categories[key].sort((a, b) => b.price - a.price);
   return Object.keys(categories).map(key => ({ category: key, devices: categories[key] }));
 })();
@@ -283,7 +284,7 @@ function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, sh
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `통신사별_지원금_백업_${new Date().toISOString().slice(0,10)}.txt`;
+    link.download = `지원금백업.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -328,10 +329,18 @@ function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, sh
     const finalFullRules = { ...rules, [operator]: updatedOpRules };
     setRules(finalFullRules);
 
-    if (showConfirm(`설정이 저장되었습니다! TXT 백업 파일을 다운로드할까요?`)) {
-      exportToTxt(finalFullRules);
-    }
-    onClose();
+    showConfirm(
+      `설정이 저장되었습니다!\nTXT 백업 파일을 다운로드할까요?`, 
+      () => {
+        // 1. '확인' 클릭 시: 파일 다운로드 후 팝업 닫기
+        exportToTxt(finalFullRules);
+        onClose();
+      },
+      () => {
+        // 2. '취소' 클릭 시: 다운로드 없이 그냥 팝업 닫기
+        onClose();
+      }
+    );
   };
 
   const addRule = () => setTempDeviceRules([...tempDeviceRules, { minPrice: 0, common: 0, additional: 0 }]);
@@ -342,11 +351,13 @@ function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, sh
     setTempDeviceRules(newRules);
   };
 
+  const operatorForTitle = operator === 'KT'? operator: 'U+';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
       <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh]">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-slate-800 uppercase">{operator} 지원금 설정</h2>
+          <h2 className="text-xl font-bold text-slate-800 uppercase">{operatorForTitle} 지원금 설정</h2>
           <button onClick={handleImportClick} className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-md font-bold shadow-sm">📂 백업파일 불러오기</button>
         </div>
         
