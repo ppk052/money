@@ -244,9 +244,9 @@ function DeviceColorPopup({ onClose }) {
 }
 
 //지원금변경 팝업
-function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, showConfirm }) {
-  const [selectedDeviceName, setSelectedDeviceName] = useState(DEVICE_LIST[0].name);
-  const [editType, setEditType] = useState('일반');
+function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, showConfirm, initialDevice, initialType }) {
+  const [selectedDeviceName, setSelectedDeviceName] = useState(initialDevice || CATEGORIZED_DEVICE_LIST[0].devices[0].name);
+  const [editType, setEditType] = useState(initialType || '일반');
 
   // 현재 통신사에 해당하는 규칙들만 가져오기 (없으면 빈 배열)
   const currentOpRules = rules[operator] || [];
@@ -503,9 +503,9 @@ function CustomerServicePopup({ onClose }) {
 
 // ------------------ 계산기 컴포넌트 ------------------
 function Calculator({
-  plans, features, operator, memos, activeMemoId, setActiveMemoId, editingTabId, setEditingTabId, tempTitle, setTempTitle, titleInputRef, handleMemoChange, handleStartEditing, handleTitleChange, handleSaveTitle, handleKeyDown, handleDeleteMemo, handleAddMemo, handleStatusChange, setShowRequestFormPopup, setShowDeviceColorPopup, setShowPlanSummaryPopup, supportRules, setSupportRules, setShowSupportModal, purchaseType, setPurchaseType, showAlert
+  plans, features, operator, memos, activeMemoId, setActiveMemoId, editingTabId, setEditingTabId, tempTitle, setTempTitle, titleInputRef, handleMemoChange, handleStartEditing, handleTitleChange, handleSaveTitle, handleKeyDown, handleDeleteMemo, handleAddMemo, handleStatusChange, setShowRequestFormPopup, setShowDeviceColorPopup, setShowPlanSummaryPopup, supportRules, setSupportRules, setShowSupportModal, purchaseType, setPurchaseType, showAlert, selectedDevice, setSelectedDevice
 }) {
-  const [selectedDevice, setSelectedDevice] = useState(CATEGORIZED_DEVICE_LIST[0].devices[0].name);
+  //const [selectedDevice, setSelectedDevice] = useState(CATEGORIZED_DEVICE_LIST[0].devices[0].name);
   const [selectedPlan, setSelectedPlan] = useState(plans[0]?.name || '');
   const [installMonths, setInstallMonths] = useState(24);
   const [interestRate] = useState(0.059);
@@ -674,7 +674,7 @@ function Calculator({
 
       <div className="mt-4"><div className="p-4 rounded-t bg-white shadow-md border-b border-gray-200"><div className="text-black font-bold text-xl">단말기 출고가: {devicePrice.toLocaleString()}원</div><div className="text-gray-700 text-lg">기본 통신요금: {originalPlanPrice.toLocaleString()}원 {featureText && <span className="text-gray-600 text-sm ml-2">({featureText})</span>}</div></div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-gray-200 rounded-b shadow-md overflow-hidden">
-          <div className={`p-4 flex flex-col gap-1.5 transition-all ${highlightClassPublic}`}><h3 className="text-xl font-bold text-center text-blue-700 mb-2">공통지원</h3><div className="text-red-600 font-bold text-lg">총 할인액 : <span>-{totalDiscount_Public.toLocaleString()}원</span></div><div className="text-green-600 font-bold text-lg">단말기 할부원금: {principal_Public.toLocaleString()}원 {installMonths > 0 && principal_Public > 0 && <span className="text-sm font-normal ml-2 text-gray-600">(총 이자: {totalInterest_Public.toLocaleString()}원)</span>}</div><div className="text-blue-600 font-bold text-lg">월 할부금: {monthlyDevice_Public.toLocaleString()}원</div><div className="text-blue-600 font-bold text-lg">월 통신요금: {originalPlanPrice.toLocaleString()}원</div><div className="text-black font-bold text-2xl mt-2 pt-2 border-t border-gray-300">월 납부 예상금액: <span className="ml-2">{totalMonthly_Public.toLocaleString()}원</span></div></div>
+          <div className={`p-4 flex flex-col gap-1.5 transition-all ${highlightClassPublic}`}><h3 className="text-xl font-bold text-center text-blue-700 mb-2">공통지원</h3><div className="text-red-600 font-bold text-lg">총 할인액 : <span>-{totalDiscount_Public.toLocaleString()}원<span className={`block text-sm font-normal ${highlightClassPublic === 'bg-green-50 ring-2 ring-green-500 z-10' ? 'text-green-50' : 'text-white'}`}>1</span></span></div><div className="text-green-600 font-bold text-lg">단말기 할부원금: {principal_Public.toLocaleString()}원 {installMonths > 0 && principal_Public > 0 && <span className="text-sm font-normal ml-2 text-gray-600">(총 이자: {totalInterest_Public.toLocaleString()}원)</span>}</div><div className="text-blue-600 font-bold text-lg">월 할부금: {monthlyDevice_Public.toLocaleString()}원</div><div className="text-blue-600 font-bold text-lg">월 통신요금: {originalPlanPrice.toLocaleString()}원</div><div className="text-black font-bold text-2xl mt-2 pt-2 border-t border-gray-300">월 납부 예상금액: <span className="ml-2">{totalMonthly_Public.toLocaleString()}원</span></div></div>
           <div className={`p-4 flex flex-col gap-1.5 transition-all ${highlightClassSelective}`}><h3 className="text-xl font-bold text-center text-blue-700 mb-2">선택약정 (25% 요금할인)</h3><div className="text-red-600 font-bold text-lg">총 할인액 : <span>-{totalDiscount_Selective.toLocaleString()}원 <span className="block text-sm font-normal text-gray-600">(기기할인 {selectiveAdditionalSupport.toLocaleString()}원 + 요금할인 {totalPlanDiscount.toLocaleString()}원)</span></span></div><div className="text-green-600 font-bold text-lg">단말기 할부원금: {principal_Selective.toLocaleString()}원 {installMonths > 0 && principal_Selective > 0 && <span className="text-sm font-normal ml-2 text-gray-600">(총 이자: {totalInterest_Selective.toLocaleString()}원)</span>}</div><div className="text-blue-600 font-bold text-lg">월 할부금: {monthlyDevice_Selective.toLocaleString()}원</div><div className="text-blue-600 font-bold text-lg">월 통신요금: {planPrice_Selective.toLocaleString()}원 <span className="text-sm font-normal ml-2 text-gray-600">({monthlyPlanDiscount.toLocaleString()}원 할인)</span></div><div className="text-black font-bold text-2xl mt-2 pt-2 border-t border-gray-300">월 납부 예상금액: <span className="ml-2">{totalMonthly_Selective.toLocaleString()}원</span></div></div>
         </div>
       </div>
@@ -706,6 +706,7 @@ function App() {
     KT: [],
     U: []
   });
+  const [selectedDevice, setSelectedDevice] = useState(CATEGORIZED_DEVICE_LIST[0].devices[0].name);
   const [alertMsg, setAlertMsg] = useState(null);
   const showAlert = (msg) => setAlertMsg(msg);
   const [confirmConfig, setConfirmConfig] = useState(null); // { message: '', onConfirm: () => {} }
@@ -751,12 +752,12 @@ function App() {
           <button onClick={handleTrackingSearch} className="bg-amber-500 text-white px-3 py-2 rounded hover:bg-amber-600 h-[40px] text-sm">배송조회</button>
         </div>
       </div>
-      <Calculator plans={plans} features={features} operator={operator} memos={memos} activeMemoId={activeMemoId} setActiveMemoId={setActiveMemoId} editingTabId={editingTabId} setEditingTabId={setEditingTabId} tempTitle={tempTitle} setTempTitle={setTempTitle} titleInputRef={titleInputRef} handleMemoChange={handleMemoChange} handleStartEditing={handleStartEditing} handleTitleChange={handleTitleChange} handleSaveTitle={handleSaveTitle} handleKeyDown={handleKeyDown} handleDeleteMemo={handleDeleteMemo} handleAddMemo={handleAddMemo} handleStatusChange={handleStatusChange} setShowRequestFormPopup={setShowRequestFormPopup} setShowDeviceColorPopup={setShowDeviceColorPopup} setShowPlanSummaryPopup={setShowPlanSummaryPopup} setShowSupportModal={setShowSupportModal} supportRules={supportRules} setSupportRules={setSupportRules} purchaseType={purchaseType} setPurchaseType={setPurchaseType} showAlert={showAlert} showConfirm={showConfirm} />
+      <Calculator plans={plans} features={features} operator={operator} memos={memos} activeMemoId={activeMemoId} setActiveMemoId={setActiveMemoId} editingTabId={editingTabId} setEditingTabId={setEditingTabId} tempTitle={tempTitle} setTempTitle={setTempTitle} titleInputRef={titleInputRef} handleMemoChange={handleMemoChange} handleStartEditing={handleStartEditing} handleTitleChange={handleTitleChange} handleSaveTitle={handleSaveTitle} handleKeyDown={handleKeyDown} handleDeleteMemo={handleDeleteMemo} handleAddMemo={handleAddMemo} handleStatusChange={handleStatusChange} setShowRequestFormPopup={setShowRequestFormPopup} setShowDeviceColorPopup={setShowDeviceColorPopup} setShowPlanSummaryPopup={setShowPlanSummaryPopup} setShowSupportModal={setShowSupportModal} supportRules={supportRules} setSupportRules={setSupportRules} purchaseType={purchaseType} setPurchaseType={setPurchaseType} showAlert={showAlert} showConfirm={showConfirm} selectedDevice={selectedDevice} setSelectedDevice={setSelectedDevice} />
       {showPopup && <CustomerServicePopup onClose={() => setShowPopup(false)} />}
       {showRequestFormPopup && <RequestFormPopup onClose={() => setShowRequestFormPopup(false)} showAlert ={showAlert} />}
       {showDeviceColorPopup && <DeviceColorPopup onClose={() => setShowDeviceColorPopup(false)} />}
       {showPlanSummaryPopup && <PlanSummaryPopup operator={operator} onClose={() => setShowPlanSummaryPopup(false)} />}
-      {showSupportModal && <SupportSettingPopup operator={operator} rules={supportRules} setRules={setSupportRules} onClose={() => setShowSupportModal(false)} showAlert={showAlert} showConfirm={showConfirm} />}
+      {showSupportModal && <SupportSettingPopup operator={operator} rules={supportRules} setRules={setSupportRules} onClose={() => setShowSupportModal(false)} showAlert={showAlert} showConfirm={showConfirm} initialDevice={selectedDevice} initialType={purchaseType} />}
       {confirmConfig && <CustomConfirm message={confirmConfig.message} onClose={handleConfirmClose} /> }
       {alertMsg && <CustomAlert message={alertMsg} onClose={() => setAlertMsg(null)} />}
     </div>
