@@ -302,12 +302,15 @@ function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, sh
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
-          const imported = JSON.parse(event.target.result);
-          showConfirm("파일을 불러와 전체 설정을 덮어쓰시겠습니까?", () => {
-            setRules(imported);
-            showAlert("불러오기 완료!");
-            onClose();
-          });
+          showConfirm("파일을 불러와 전체 설정을 덮어쓰시겠습니까?", (confirmed) => {
+              if(confirmed){
+                const imported = JSON.parse(event.target.result);
+                setRules(imported);
+                showAlert("불러오기 완료!");
+              }
+              onClose();
+            }
+          );
         } catch (err) {
           showAlert("올바른 설정 파일이 아닙니다.");
         }
@@ -319,8 +322,10 @@ function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, sh
 
   // --- 최종 저장 ---
   const handleFinalSave = () => {
+    // 1. 데이터 정리 및 저장 로직 (기존과 동일)
     const updatedOpRules = [...currentOpRules];
     let deviceIdx = updatedOpRules.findIndex(r => r.deviceName === selectedDeviceName);
+    
     if (deviceIdx === -1) {
       updatedOpRules.push({ deviceName: selectedDeviceName, 일반: [], 갤캠스: [] });
       deviceIdx = updatedOpRules.length - 1;
@@ -328,18 +333,18 @@ function SupportSettingPopup({ operator, rules, setRules, onClose, showAlert, sh
     updatedOpRules[deviceIdx][editType] = tempDeviceRules;
 
     const finalFullRules = { ...rules, [operator]: updatedOpRules };
+    
+    // 램(상태)에 즉시 저장
     setRules(finalFullRules);
 
+    // 2. 확인 창 띄우기
     showConfirm(
       `설정이 저장되었습니다!\nTXT 백업 파일을 다운로드할까요?`, 
-      () => {
-        // 1. '확인' 클릭 시: 파일 다운로드 후 팝업 닫기
+      (confirmed) => {
+        if (confirmed) {
         exportToTxt(finalFullRules);
-        onClose();
-      },
-      () => {
-        // 2. '취소' 클릭 시: 다운로드 없이 그냥 팝업 닫기
-        onClose();
+      }
+      onClose();
       }
     );
   };
@@ -471,13 +476,13 @@ function CustomConfirm({ message, onClose }) {
             onClick={() => onClose(false)} 
             className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200"
           >
-            취소
+            아니요
           </button>
           <button 
             onClick={() => onClose(true)} 
             className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700"
           >
-            확인
+            예
           </button>
         </div>
       </div>
@@ -506,9 +511,57 @@ function CustomerServicePopup({ onClose }) {
 function Calculator({
   plans, features, operator, memos, activeMemoId, setActiveMemoId, editingTabId, setEditingTabId, tempTitle, setTempTitle, titleInputRef, handleMemoChange, handleStartEditing, handleTitleChange, handleSaveTitle, handleKeyDown, handleDeleteMemo, handleAddMemo, handleStatusChange, setShowRequestFormPopup, setShowDeviceColorPopup, setShowPlanSummaryPopup, supportRules, setSupportRules, setShowSupportModal, purchaseType, setPurchaseType, showAlert, selectedDevice, setSelectedDevice
 }) {
-  //const [selectedDevice, setSelectedDevice] = useState(CATEGORIZED_DEVICE_LIST[0].devices[0].name);
   const [selectedPlan, setSelectedPlan] = useState(plans[0]?.name || '');
+  const [inputValue, setInputValue] = useState(plans[0]?.name || '');
+  const [isPlanListOpen, setIsPlanListOpen] = useState(false);
+  const planListRef = useRef(null);
+  
+  const [isManualMode, setIsManualMode] = useState(false);
+  const [manualPrice, setManualPrice] = useState('');
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (planListRef.current && !planListRef.current.contains(e.target)) {
+        setIsPlanListOpen(false);
+        if (!isManualMode) setInputValue(selectedPlan);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [selectedPlan, isManualMode]);
+
+  // 통신사 변경 시 초기화
+  useEffect(() => {
+    const defaultPlan = plans[0]?.name || '';
+    setSelectedPlan(defaultPlan);
+    setInputValue(defaultPlan);
+    setIsManualMode(false);
+    setManualPrice('');
+  }, [plans]);
+
+  const filteredPlans = useMemo(() => {
+    if (!inputValue) return plans;
+    return plans.filter(p => p.name.toLowerCase().includes(inputValue.toLowerCase()));
+  }, [plans, inputValue]);
+
+  const plan = React.useMemo(() => {
+    if (isManualMode) {
+      return { 
+        name: '직접 입력', 
+        price: Number(manualPrice) || 0, // 숫자 입력 시 즉시 반영
+        category: '기타',
+        data: '-',
+        calls: '-'
+      };
+    }
+    return plans.find(p => p.name === selectedPlan) || plans[0];
+  }, [plans, selectedPlan, isManualMode, manualPrice]);
+
   const [installMonths, setInstallMonths] = useState(24);
+
+  const showManualInput = isManualMode && !isPlanListOpen;
+  const isExpanded = !showManualInput;
+
   const [interestRate] = useState(0.059);
   const [commonSupport, setCommonSupport] = useState(0);
   const [additionalSupport, setAdditionalSupport] = useState(0);
@@ -526,8 +579,9 @@ function Calculator({
   
   // 선택약정 전용 추가지원금(구 선할인)
   const [selectiveAdditionalSupport, setSelectiveAdditionalSupport] = useState(0);
+  const [planSearch, setPlanSerch] = useState('');
+  
 
-  useEffect(() => { setSelectedPlan(plans[0]?.name || ''); }, [plans]);
   // useEffect(() => {
   //   if (operator === 'KT' && !additionalEdited) {
   //     const currentPlan = plans.find(p => p.name === selectedPlan);
@@ -543,10 +597,14 @@ function Calculator({
   }, [editingTabId]);
 
   const devicePrice = useMemo(()=> DEVICE_LIST.find(d=>d.name===selectedDevice)?.price || 0, [selectedDevice]);
-  const originalPlanPrice = useMemo(() => plans.find(p => p.name === selectedPlan)?.price || 0, [selectedPlan, plans]);
+  const originalPlanPrice = plan.price;
   const monthlyPlanDiscount = useMemo(() => Math.round(originalPlanPrice * 0.25), [originalPlanPrice]);
   const totalPlanDiscount = useMemo(() => monthlyPlanDiscount * 24, [monthlyPlanDiscount]);
-  const featureText = useMemo(()=> features[normalizePlanKey(selectedPlan)] || '', [selectedPlan, features]);
+  const featureText = useMemo(()=> {
+    if (isManualMode) return "직접입력모드";
+  // 일반 요금제일 때는 기존처럼 데이터/통화 설명 가져오기
+  return features[normalizePlanKey(selectedPlan)] || '';
+}, [isManualMode, selectedPlan, features]);
 
   // 공통지원 계산
   const totalDiscount_Public = commonSupport + additionalSupport;
@@ -572,7 +630,7 @@ function Calculator({
   const handleContractTypeChange = (newType) => setContractType(newType);
   // 2. 요금제가 바뀌거나 범위 설정이 바뀔 때 자동 실행
   useEffect(() => {
-  const currentPlan = plans.find(p => p.name === selectedPlan);
+  const currentPlan = plan;
   if (!currentPlan) return;
 
   // 에러 해결 포인트: supportRules가 객체이므로 [operator]로 먼저 접근합니다.
@@ -590,7 +648,7 @@ function Calculator({
   setCommonSupport(newCommon);
   setAdditionalSupport(newAdditional);
   setSelectiveAdditionalSupport(newAdditional);
-}, [selectedDevice, selectedPlan, supportRules, plans, operator, purchaseType]);
+}, [selectedDevice, selectedPlan, supportRules, plans, operator, purchaseType, originalPlanPrice]);
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -604,12 +662,70 @@ function Calculator({
             </optgroup>
           ))}
         </select>
-        <select value={selectedPlan} onChange={e=>setSelectedPlan(e.target.value)} className="border p-2 rounded flex-1 min-w-0">
-          {['LTE','시니어','Y','5G'].map(cat=> {
-            const f = plans.filter(p=>p.category===cat);
-            return f.length > 0 && <optgroup key={cat} label={cat}>{f.map(p=><option key={p.name} value={p.name}>{p.name} ({p.price.toLocaleString()}원)</option>)}</optgroup>
-          })}
-        </select>
+        {/* 요금제 드롭다운 영역 */}
+        <div className={`relative flex-1 ${isManualMode ? 'w-[40%]' : 'flex-1 min-w-0'}`} ref={planListRef}>
+          <input
+            type="text"
+            className="border p-2 rounded w-full bg-white outline-none focus:ring-2 focus:ring-blue-500 cursor-default"
+            placeholder="요금제 검색..."
+            value={isPlanListOpen ? inputValue : (isManualMode ? "직접 입력" : selectedPlan)}
+            onClick={() => {
+              setIsPlanListOpen(true);
+              setInputValue(''); // 클릭 시 입력칸을 비워 전체 리스트가 나오게 함
+            }}
+            onChange={(e) => setInputValue(e.target.value)}
+            // 직접입력 모드라도 리스트가 열리면(검색을 위해) 타이핑 가능해야 하므로 readOnly 조건 수정
+            readOnly={isManualMode && !isPlanListOpen}
+          />
+          {isPlanListOpen && (
+            <div className="absolute border mt-1 w-full bg-white z-[110] rounded shadow-2xl max-h-64 overflow-y-auto border-slate-300 left-0 overflow-x-hidden">
+              {['LTE', '시니어', 'Y', '5G'].map(cat => {
+                const catPlans = filteredPlans.filter(p => p.category === cat);
+                if (catPlans.length === 0) return null;
+                return (
+                  <div key={cat}>
+                    <div className="bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500 sticky top-0">{cat}</div>
+                    {catPlans.map(p => (
+                      <div key={p.name} className="px-3 py-2 cursor-pointer hover:bg-blue-50 text-sm flex justify-between items-center"
+                        onClick={() => {
+                          setSelectedPlan(p.name);
+                          setInputValue(p.name);
+                          setIsManualMode(false);
+                          setIsPlanListOpen(false);
+                        }}>
+                        <span className="truncate mr-2">{p.name}</span>
+                        <span className="text-gray-600 text-[11px] shrink-0">{p.price.toLocaleString()}원</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+              {/* 직접 입력 유도 버튼 */}
+              <div 
+                className="p-3 text-center text-blue-600 font-bold hover:bg-blue-50 cursor-pointer border-t text-sm bg-slate-50"
+                onClick={() => {
+                  setIsManualMode(true);
+                  setIsPlanListOpen(false);
+                  setManualPrice('');
+                }}
+              >
+                + 요금제 직접 입력
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 직접 입력 모드일 때만 나타나는 숫자 칸 */}
+        {showManualInput && (
+          <input
+            type="number"
+            className="border p-2 rounded w-[25%] bg-yellow-50 outline-none focus:ring-2 focus:ring-yellow-400 font-bold"
+            placeholder="월 요금(원)"
+            value={manualPrice}
+            onChange={(e) => setManualPrice(e.target.value)}
+            autoFocus
+          />
+        )}
         <select value={installMonths} onChange={e=>setInstallMonths(Number(e.target.value))} className="border p-2 rounded w-24 text-center">
           {[0,6,12,18,24,30,36,48].map(m=><option key={m} value={m}>{m===0?'일시불':m+'개월'}</option>)}
         </select>
@@ -714,12 +830,13 @@ function App() {
   const showConfirm = (message, onConfirm) => {
     setConfirmConfig({ message, onConfirm });
   };
-  const handleConfirmClose = (isConfirmed) => {
-    if (isConfirmed && confirmConfig.onConfirm) {
-      confirmConfig.onConfirm();
-    }
-    setConfirmConfig(null);
-  };
+  const handleConfirmClose = (result) => {
+  if (confirmConfig && typeof confirmConfig.onConfirm === 'function') {
+    confirmConfig.onConfirm(result);
+  }
+  // 확인창 상태 초기화 (창 닫기)
+  setConfirmConfig(null);
+};
   const [showSupportModal, setShowSupportModal] = useState(false);
 
   const handleAddMemo = () => { const newId = (memos.length > 0 ? Math.max(...memos.map(m => m.id)) : 0) + 1; setMemos([...memos, { id: newId, title: `메모 ${newId}`, content: '', status: null }]); setActiveMemoId(newId); };
